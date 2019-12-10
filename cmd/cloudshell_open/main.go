@@ -232,13 +232,15 @@ func run(opts runOpts) error {
 	image := fmt.Sprintf("gcr.io/%s/%s", project, serviceName)
 
 	existingEnvVars := map[string]struct{}{}
-	_, err = describe(project, serviceName, region, "text", "")
+	_, err = describe(project, serviceName, region)
 	if err == nil {
 		// service exists
 		existingEnvVars, err = envVars(project, serviceName, region)
 	}
 
-	envs, err := promptEnv(appFile.Env, existingEnvVars)
+	promptForEnv := prepEnv(appFile.Env, existingEnvVars)
+
+	envs, err := promptEnv(promptForEnv)
 	if err != nil {
 		return err
 	}

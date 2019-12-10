@@ -15,7 +15,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"sort"
@@ -30,6 +32,40 @@ const (
 	defaultRunRegion = "us-central1"
 	defaultRunMemory = "512Mi"
 )
+
+type service struct {
+	Spec serviceSpec `json:"spec"`
+	Status serviceStatus `json:"status"`
+}
+
+type serviceSpec struct {
+	Template serviceTemplate `json:"template"`
+}
+
+type serviceTemplate struct {
+	Spec templateSpec `json:"spec"`
+}
+
+type templateSpec struct {
+	Containers []container `json:"containers"`
+}
+
+type container struct {
+	EnvVars []envVar `json:"env"`
+}
+
+type envVar struct {
+	Name string `json:"name"`
+	Value string `json:"value"`
+}
+
+type serviceStatus struct {
+	Address address `json:"address"`
+}
+
+type address struct {
+	Url string `json:"url"`
+}
 
 func deploy(project, name, image, region string, envs []string) (string, error) {
 	cmd := exec.Command("gcloud", "run", "deploy", "-q",
@@ -88,39 +124,53 @@ func promptDeploymentRegion(ctx context.Context, project string) (string, error)
 }
 
 
-func describe(project, name, region, format, flatten string) (string, error) {
+func describe(project, name, region string) (service, error) {
+	var service service
+	var o bytes.Buffer
+	var e bytes.Buffer
+
 	cmd := exec.Command("gcloud", "run", "services", "describe", name,
 		"--project", project,
 		"--platform", "managed",
 		"--region", region,
-		"--format", format,
-		"--flatten", flatten)
+		"--format=json")
 
-	b, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("deployment to Cloud Run failed: %+v. output:\n%s", err, string(b))
+	cmd.Stdout = &o
+	cmd.Stderr = &e
+	if err := cmd.Run(); err != nil {
+		return service, fmt.Errorf("error describing service: %+v. output=\n%s", err, e.String())
 	}
-	return strings.TrimSpace(string(b)), nil
+
+	if err := json.NewDecoder(&o).Decode(&service); err != nil {
+		return service, fmt.Errorf("error decoding gcloud --format=json output: %+v", err)
+	}
+
+	return service, nil
 }
 
 func serviceURL(project, name, region string) (string, error) {
-	return describe(project, name, region, "value(status.address.url)", "")
+	service, err := describe(project, name, region)
+
+	if err != nil {
+		return "", err
+	}
+
+	return service.Status.Address.Url, nil
 }
 
 func envVars(project, name, region string) (map[string]struct{}, error) {
-	// todo(jamesward) investigate a better way to parse
-	flatten := "spec.template.spec.containers[].env[]"
-	format := "csv[no-heading](spec.template.spec.containers.env.name)"
-	lines, err := describe(project, name, region, format, flatten)
+	service, err := describe(project, name, region)
 
 	if err != nil {
-		return map[string]struct{}{}, fmt.Errorf("deployment to Cloud Run failed: %+v. output:\n%s", err, string(lines))
+		return map[string]struct{}{}, err
 	}
 
 	existing := map[string]struct{}{}
 
-	for _, k := range strings.Split(lines, string('\n')) {
-		existing[k] = struct{}{}
+	for _, container := range service.Spec.Template.Spec.Containers {
+		for _, envVar := range container.EnvVars {
+			existing[envVar.Name] = struct{}{}
+		}
 	}
 
 	return existing, nil

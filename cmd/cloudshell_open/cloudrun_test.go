@@ -60,18 +60,16 @@ func Test_describe(t *testing.T) {
 		project string
 		region string
 		service string
-		format string
-		want string
 		wantErr bool
 	}{
-		{"crb-test", "us-central1", "asdf1234zxcv5678", "json", "", true},
-		{"crb-test", "us-central1", "cloud-run-hello", "value(metadata.name)", "cloud-run-hello", false},
+		{"crb-test", "us-central1", "asdf1234zxcv5678", true},
+		{"crb-test", "us-central1", "cloud-run-hello", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.service, func(t *testing.T) {
-			got, err := describe(tt.project, tt.service, tt.region, tt.format, "")
+			_, err := describe(tt.project, tt.service, tt.region)
 
-			tparams := fmt.Sprintf("describe(%s, %s, %s, %s)", tt.project, tt.region, tt.service, tt.format)
+			tparams := fmt.Sprintf("describe(%s, %s, %s)", tt.project, tt.region, tt.service)
 
 			if err == nil && tt.wantErr {
 				t.Error(tparams + " was expected to error but did not")
@@ -80,24 +78,8 @@ func Test_describe(t *testing.T) {
 			if err != nil && !tt.wantErr {
 				t.Error(tparams + " produced an error: %s", err)
 			}
-
-			if got != tt.want {
-				t.Errorf(tparams + " = %v, want %v", got, tt.want)
-			}
 		})
 	}
-}
-
-func StringArrayEquals(a []string, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, v := range a {
-		if v != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 // this integration test depends on gcloud being auth'd as someone that has access to the crb-test project
