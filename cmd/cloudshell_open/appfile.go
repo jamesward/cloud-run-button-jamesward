@@ -35,14 +35,14 @@ type env struct {
 	Generator   string `json:"generator"`
 }
 
-type scripts struct {
-	PostDeploy string `json:"postdeploy"`
+type hook struct {
+	PostCreate string `json:"postcreate"`
 }
 
 type appFile struct {
 	Name    string         `json:"name"`
 	Env     map[string]env `json:"env"`
-	Scripts scripts        `json:"scripts"`
+	Hooks 	hook	       `json:"hook"`
 
 	// The following are unused variables that are still silently accepted
 	// for compatibility with Heroku app.json files.

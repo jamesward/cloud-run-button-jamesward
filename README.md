@@ -58,6 +58,9 @@ For example:
         "APP_SECRET": {
             "generator": "secret"
         }
+    },
+    "hook": {
+        "postcreate": "postcreate.sh"
     }
 }
 ```
@@ -74,6 +77,8 @@ Reference:
   - `required`, _(optional, default: `true`)_ indicates if they user must provide
     a value for this variable.
   - `generator`, _(optional)_ use a generator for the value, currently only support `secret`
+- `hook`: _(optional)_ Run scripts at phases of the deploy process
+  - `postcreate`: _(optional) Runs the specified script file after the service has been created
 
 ### Notes
 
