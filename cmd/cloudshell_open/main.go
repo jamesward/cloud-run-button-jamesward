@@ -36,6 +36,8 @@ const (
 	flGitBranch = "git_branch"
 	flSubDir    = "dir"
 	flPage      = "page"
+	flProject   = "project" // for automated testing
+	flRegion    = "region" // for automated testing
 
 	projectCreateURL = "https://console.cloud.google.com/cloud-resource-manager"
 )
@@ -64,6 +66,8 @@ func init() {
 	flags.StringVar(&opts.repoURL, flRepoURL, "", "url to git repo")
 	flags.StringVar(&opts.gitBranch, flGitBranch, "", "(optional) branch/revision to use from the git repo")
 	flags.StringVar(&opts.subDir, flSubDir, "", "(optional) sub-directory to deploy in the repo")
+	flags.StringVar(&opts.project, flProject, "", "(optional) the GCP project")
+	flags.StringVar(&opts.region, flRegion, "", "(optional) the GCP region")
 	_ = flags.String(flPage, "", "ignored")
 }
 func main() {
@@ -88,6 +92,8 @@ type runOpts struct {
 	repoURL   string
 	gitBranch string
 	subDir    string
+	project   string
+	region    string
 }
 
 func logProgress(msg, endMsg, errMsg string) func(bool) {
@@ -165,39 +171,43 @@ func run(opts runOpts) error {
 		return fmt.Errorf("error attempting to read the app.json from the cloned repository: %+v", err)
 	}
 
-	var projects []string
+	project := opts.project
 
-	for len(projects) == 0 {
-		end = logProgress("Retrieving your GCP projects...",
-			"Queried list of your GCP projects",
-			"Failed to retrieve your GCP projects.",
-		)
-		projects, err = listProjects()
-		end(err == nil)
+	if project == "" {
+		var projects []string
+
+		for len(projects) == 0 {
+			end = logProgress("Retrieving your GCP projects...",
+				"Queried list of your GCP projects",
+				"Failed to retrieve your GCP projects.",
+			)
+			projects, err = listProjects()
+			end(err == nil)
+			if err != nil {
+				return err
+			}
+
+			if len(projects) == 0 {
+				fmt.Print(errorPrefix+" "+
+					warningLabel.Sprint("You don't have any GCP projects to deploy into!")+
+					"\n  1. Visit "+linkLabel.Sprint(projectCreateURL),
+					"\n  2. Create a new GCP project with a billing account",
+					"\n  3. Once you're done, press "+parameterLabel.Sprint("Enter")+" to continue: ")
+				if _, err := bufio.NewReader(os.Stdin).ReadBytes('\n'); err != nil {
+					return err
+				}
+			}
+		}
+
+		if len(projects) > 1 {
+			fmt.Printf(successPrefix+" Found %s projects in your GCP account.\n",
+				successLabel.Sprintf("%d", len(projects)))
+		}
+
+		project, err = promptProject(projects)
 		if err != nil {
 			return err
 		}
-
-		if len(projects) == 0 {
-			fmt.Print(errorPrefix+" "+
-				warningLabel.Sprint("You don't have any GCP projects to deploy into!")+
-				"\n  1. Visit "+linkLabel.Sprint(projectCreateURL),
-				"\n  2. Create a new GCP project with a billing account",
-				"\n  3. Once you're done, press "+parameterLabel.Sprint("Enter")+" to continue: ")
-			if _, err := bufio.NewReader(os.Stdin).ReadBytes('\n'); err != nil {
-				return err
-			}
-		}
-	}
-
-	if len(projects) > 1 {
-		fmt.Printf(successPrefix+" Found %s projects in your GCP account.\n",
-			successLabel.Sprintf("%d", len(projects)))
-	}
-
-	project, err := promptProject(projects)
-	if err != nil {
-		return err
 	}
 
 	if err := waitForBilling(project, func(p string) error {
@@ -224,9 +234,13 @@ func run(opts runOpts) error {
 		return err
 	}
 
-	region, err := promptDeploymentRegion(ctx, project)
-	if err != nil {
-		return err
+	region := opts.region
+
+	if region == "" {
+		region, err = promptDeploymentRegion(ctx, project)
+		if err != nil {
+			return err
+		}
 	}
 
 	repoName := filepath.Base(appDir)
