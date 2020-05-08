@@ -9,3 +9,4 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' \
 
 FROM gcr.io/cloudshell-images/cloudshell:latest
 COPY --from=build /bin/a.out /bin/cloudshell_open
+ENTRYPOINT /bin/cloudshell_open
