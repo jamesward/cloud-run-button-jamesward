@@ -1,0 +1,6 @@
+{
+  "options": {
+    "memory": "512Mi",
+    "cpu": "2"
+  }
+}
