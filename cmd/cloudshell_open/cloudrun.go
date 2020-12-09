@@ -29,11 +29,12 @@ import (
 
 const (
 	defaultRunRegion = "us-central1"
-	defaultRunMemory = "512Mi"
 )
 
+var userAgentClientOptions = option.WithUserAgent("cloud-run-button")
+
 func projectRunLocations(ctx context.Context, project string) ([]string, error) {
-	runSvc, err := runapi.NewService(ctx)
+	runSvc, err := runapi.NewService(ctx, userAgentClientOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize Run API client: %+v", err)
 	}
@@ -82,7 +83,7 @@ func getService(project, name, region string) (*runapi.Service, error) {
 
 func runClient(region string) (*runapi.APIService, error) {
 	regionalEndpoint := fmt.Sprintf("https://%s-run.googleapis.com/", region)
-	return runapi.NewService(context.TODO(), option.WithEndpoint(regionalEndpoint))
+	return runapi.NewService(context.TODO(), option.WithEndpoint(regionalEndpoint), userAgentClientOptions)
 }
 
 func serviceURL(project, name, region string) (string, error) {

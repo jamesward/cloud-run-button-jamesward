@@ -208,7 +208,7 @@ func waitReady(project, name, region string) error {
 // allowUnauthenticated sets IAM policy on the specified Cloud Run service to give allUsers subject
 // roles/run.invoker role.
 func allowUnauthenticated(project, name, region string) error {
-	client, err := runapi.NewService(context.TODO())
+	client, err := runapi.NewService(context.TODO(), userAgentClientOptions)
 	if err != nil {
 		return fmt.Errorf("failed to initialize Run API client: %w", err)
 	}
