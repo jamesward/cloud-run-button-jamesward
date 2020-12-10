@@ -1,3 +1,4 @@
-FROM alpine
+FROM lkwg82/h2o-http2-server
 
-ENTRYPOINT while :; do nc -k -l -p $PORT -e sh -c 'echo -e "HTTP/1.1 200 OK\n\nhello, world"'; done
+COPY h2o.conf h2o.conf
+COPY index.html /www/
